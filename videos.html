@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Woodmont Services - All</title>
+</head>
+<body style="background-color:lightgrey;">
+
+  <div class="videos"></div>
+
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="http://momentjs.com/downloads/moment.js"></script>
+  <script type="text/javascript">
+    //Woodmont's Wistia APIs Password
+    var apiPassword = "3baebe8165a44576664b4f16afc54115a13be845249d0b7e9011415934b5cb69";
+    //Wistia 'Woodmont Hills Video Podcast.' project ID
+    var projectId = "ajxszlmamt";
+
+    $(document).ready(function () {
+     getVideos();
+    });
+
+    function getVideos( keyword ) {
+      var wistiaProjectAPI = "https://api.wistia.com/v1/projects/" + projectId + ".json?api_password=" + apiPassword + "&sort_by=created&sort_direction=1";
+      $.ajax({
+        url: wistiaProjectAPI,
+        type: 'GET',
+        dataType: 'json',
+        success: function(json) {
+          $.each(json.medias, function(index, media){
+            getMedia(media.hashed_id);
+          });
+        },
+        error: function() { $("<p align='center'>Error retrieving videos</p>").appendTo( $( ".videos" ) ); }
+      });
+    }
+
+    function getMedia(hashed_id){
+      var wistiaMediaAPI = "https://api.wistia.com/v1/medias/HASH.json?api_password=3baebe8165a44576664b4f16afc54115a13be845249d0b7e9011415934b5cb69";
+      $.ajax({
+        url: wistiaMediaAPI.replace("HASH", hashed_id),
+        type: 'GET',
+        dataType: 'json',
+        success: function(json) {
+            $( "<center><table style='background-color:white;width:50%'><tr><td align='center' colspan=2>" +  json.embedCode + "</td></tr><tr><td style='align:left;padding:5;vertical-align:text-top'><font size=5>" + json.name + "</font></td><td align='right' padding=5><font size=2>" + getFormattedDate(json.created) + "</br>" + getFormattedDuration(json.duration) + "</font></td></tr><tr><td style='align:left;padding:5;vertical-align:text-top';colspan:2><font size=2>" + json.description + "</font></td></tr></table></center><br>"  ).appendTo( $( ".videos" ) );
+        },
+        error: function() { $("<p align='center'>Error retrieving video</p>").appendTo( $( ".videos" ) ); }
+      });
+    }
+
+    function getFormattedDate(myDate){
+      return moment(myDate).format("MMMM D, YYYY");
+    }
+
+    function getFormattedDuration(myDuration){
+      var durHours =  (myDuration - (myDuration % 3600))/3600;
+      var durMinutuesMinusHours = myDuration - (durHours * 3600);
+      var durMinutes = (durMinutuesMinusHours - (durMinutuesMinusHours % 60))/60;
+      return (durHours > 0 ? "<b>" + durHours + "</b> hr " : "") + "<b>" + durMinutes + "</b> min";
+    }
+  </script>
+
+</body>
+</html>

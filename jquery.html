@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>jQuery.getJSON demo</title>
+  <style>
+  img {
+    height: 100px;
+    float: left;
+  }
+  </style>
+</head>
+<body>
+
+<div id="videos"></div>
+
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+<script type="text/javascript">
+(function() {
+  var wistiaAPI = "https://api.wistia.com/v1/medias/bw4m7p8pt0.json?api_password=3baebe8165a44576664b4f16afc54115a13be845249d0b7e9011415934b5cb69";
+  $(document).ready(function() {
+  $.ajax({
+    url: wistiaAPI,
+    type: 'GET',
+    dataType: 'json',
+    success: function(json) { $('#videos').html(json.embedCode); },
+    error: function() { alert('boo!'); }
+  });
+});
+
+})();
+</script>
+
+</body>
+</html>

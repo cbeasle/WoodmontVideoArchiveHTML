@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Woodmont Services - Paging</title>
+</head>
+<body style="background-color:lightgrey;">
+
+  <div class="video"></div>
+  <div class="thumbnails"></div>
+  <div class="navigation"></div>
+
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="http://momentjs.com/downloads/moment.js"></script>
+  <script type='text/javascript' src="//wurfl.io/wurfl.js"></script>
+  <script type="text/javascript">
+    //Woodmont's Wistia APIs Password
+    var apiPassword = "fb6835daf4a521a75d9f68049ff2cc936b82557d75277a6e3dae9a7939e86dad";
+    //Wistia 'Woodmont Hills Video Podcast.' project ID
+    var projectId = "ajxszlmamt";
+    //starting page number
+    var pageNumber = 1;
+    //total number of pages
+    var totalPages = 0;
+    //hold response from media API
+    var gMedias = null;
+
+    $(document).ready(function () {
+      setTotalPages();
+      setTimeout(loadViewer, 3000);
+
+      if(WURFL.form_factor == "Tablet" || WURFL.is_mobile){
+        changePage(1);
+        changePage(-1);
+      }
+    });
+
+    function setTotalPages() {
+      var wistiaProjectAPI = "https://api.wistia.com/v1/projects/" + projectId + ".json?api_password=" + apiPassword;
+      $.ajax({
+        url: wistiaProjectAPI,
+        type: 'GET',
+        async: true,
+        dataType: 'json',
+        success: function(json) {
+          totalPages = (json.mediaCount - (json.mediaCount % 6))/6;
+        },
+        error: function() { $("<p align='center'>Error retrieving video count</p>").appendTo( $( ".videos" ) ); }
+      });
+    }
+
+    function loadViewer() {
+      var wistiaMediaAPI = "https://api.wistia.com/v1/medias.json?api_password=" + apiPassword + "&project_id=" + projectId + "&sort_direction=0&sort_by=created&page=" + pageNumber + "&per_page=6";
+      $.ajax({
+        url: wistiaMediaAPI,
+        type: 'GET',
+        dataType: 'json',
+        success: function(medias) {
+          gMedias = medias;
+
+          var readyIndex = 0
+          for(var i=0; i<gMedias.length; i++){
+            if ("ready".localeCompare(gMedias[i].status) == 0){
+              readyIndex = i;
+              i = gMedias.length;
+            }
+          }
+          $( ".video" ).html( changeVideo(gMedias[readyIndex].hashed_id) );
+
+          $( ".thumbnails" ).html( getThumbnailsHTML() );
+
+        },
+        error: function() { $("<p align='center'>Error retrieving videos</p>").appendTo( $( ".videos" ) ); }
+      });
+      loadNavigation();
+    }
+
+    function loadNavigation(){
+      $( ".navigation" ).html( getNavigationHTML() );
+    }
+
+    function getNavigationHTML() {
+      var html = "<center><table style='table-layout:fixed;width:720px'><tr>";
+
+      if(pageNumber==1 ){
+        html = html + "<td align='right'>&nbsp;</td>";
+      }else{
+        html = html + "<td align='right'><button onclick=changePage(-1) name='previous' type='button'>Previous&nbsp;&nbsp;&nbsp;&nbsp;</button></td>";
+      }
+
+      if(pageNumber<(totalPages+1)){
+        html = html + "<td align='left'><button onclick=changePage(1) name='next' type='button'>&nbsp;&nbsp;&nbsp;&nbsp;Next</button></td>";
+      }else{
+        html = html + "<td align='left'>&nbsp;</td>";
+      }
+
+      html = html + "</tr></table></center>"
+
+      return html;
+    }
+
+    function changePage(offSet){
+      pageNumber = pageNumber+offSet;
+      loadViewer();
+    }
+
+    function changeVideo(hashedId) {
+      $( ".video" ).html( getVideoHtml(hashedId) );
+    }
+
+    function getVideoHtml(hashedId){
+      for(var i=0; i<gMedias.length; i++){
+        if(hashedId.localeCompare(gMedias[i].hashed_id) == 0){
+          var media = gMedias[i];
+          if (media.embedCode != null){
+            return "<center><table style='table-layout:fixed;background-color:white;width:720px'><tr><td align='center' colspan=2>" +  media.embedCode + "</td></tr><tr><td style='align:left;padding:5;vertical-align:text-top'><font size=5>" + media.name + "</font></td><td align='right' padding=5><font size=2>" + getFormattedDate(media.created) + "</font></br>" + getFormattedDuration(media.duration) + "</font></td></tr><tr><td style='align:left;padding:5;vertical-align:text-top';colspan:2><font size=2>" + media.description + "</font></td></tr></table></center><br>";
+          }else{
+            return "<center><p><font size=5>" + media.name + " is processing and will be available soon for viewing.<br>Progress: "+ Math.round(media.progress*100)  + "%</font></p></center>";
+          }
+        }
+      }
+    }
+
+    function getThumbnailsHTML(){
+      var html = "<center><table style='table-layout:fixed;width:720px'>"
+
+      for ( var i = 0; i < gMedias.length; i++){
+        if (i == 0 || i == 3){
+          html = html + "<tr>";
+        }
+        html = html + "<td onclick=changeVideo('" + gMedias[i].hashed_id + "') class='td1' id='" + gMedias[i].hashed_id + "' style='border: 8px solid lightgrey;background-color:white;width:200px;word-wrap:break-word;align:center'><center><img src='" + gMedias[i].thumbnail.url.replace("720x486","206x139") + "'></center><br><font size=4>" + gMedias[i].name + "</font><br><font size=2>" + getFormattedDate(gMedias[i].created) + "</font></td></td>";
+        if (i == 2){
+          html = html + "</tr>";
+        }
+      }
+
+      html = html + "</tr></table></center><br>";
+
+      return html;
+    }
+
+    function getFormattedDate(myDate){
+      return moment(myDate).format("MMMM D, YYYY");
+    }
+
+    function getFormattedDuration(myDuration){
+      var durHours =  (myDuration - (myDuration % 3600))/3600;
+      var durMinutuesMinusHours = myDuration - (durHours * 3600);
+      var durMinutes = (durMinutuesMinusHours - (durMinutuesMinusHours % 60))/60;
+      return (durHours > 0 ? "<b>" + durHours + "</b> hr " : "") + "<b>" + durMinutes + "</b> min";
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Woodmont Services - Paging</title>
+
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="http://momentjs.com/downloads/moment.js"></script>
+  <script type='text/javascript' src="http://wurfl.io/wurfl.js"></script>
+  <script type="text/javascript">
+    //starting page number
+    var videosPerPage = 6;
+    //starting page number
+    var pageNumber = 1;
+    //total number of pages
+    var totalPages = 0;
+
+    var channelUri = null;
+    var firstChannelPageUrl = null;
+    var lastChannelPageUrl = null;
+    var prevChannelPageUrl = null;
+    var nextChannelPageUrl = null;
+    var videoPageJson = null;
+
+    //Woodmont's Vimeo APIs Password
+    var vimeoAppRoot = "https://api.vimeo.com";
+    var apiPassword = "94ca7078c6fa14dade1134e93e36f9f0";
+    var vimeoArchiveName = "Woodmont Hills Church Video Archive";
+    //var vimeoArchiveName = "Bristol Road Church of Christ";
+    var dateRegEx = /^(\d{1,2}\/\d{1,2}\/\d{4} \| )/;
+
+    $(document).ready(function () {
+
+      getChannelUri();
+      setTimeout(loadViewer(firstChannelPageUrl), 3000);
+
+      if(WURFL.form_factor == "Tablet" || WURFL.is_mobile){
+        loadViewer(lastChannelPageUrl);
+        loadViewer(firstChannelPageUrl);
+      }
+    });
+
+    function getChannelUri() {
+      var channelSearch = vimeoAppRoot + "/me/channels";
+
+      $.ajax({
+        url: channelSearch,
+        type: 'GET',
+        async: false,
+        dataType: 'json',
+        headers: {
+          "Authorization" : "Bearer " + apiPassword, "Accept" : "application/vnd.vimeo.*+json;version=3.2"
+        },
+        success: function(json) {
+          for(var i=0; i<json.data.length; i++){
+            if(vimeoArchiveName.localeCompare(json.data[i].name) == 0){
+              channelUri = json.data[i].uri;
+              firstChannelPageUrl = vimeoAppRoot +  channelUri + "/videos?direction=desc&page=" + pageNumber + "&per_page=" + videosPerPage + "&sort=manual";
+            }
+          }
+
+        },
+        error: function() { $("<p align='center'>Error retrieving channel information</p>").appendTo( $( ".video" ) ); }
+      });
+    }
+
+    function getVideoPage(channelPageUrl) {
+      $.ajax({
+        url: channelPageUrl,
+        type: 'GET',
+        async: false,
+        dataType: 'json',
+        headers: {
+          "Authorization" : "Bearer " + apiPassword, "Accept" : "application/vnd.vimeo.*+json;version=3.2"
+        },
+        success: function(json) {
+          videoPageJson = json;
+          firstChannelPageUrl = json.paging.first != null ? vimeoAppRoot + json.paging.first : null;
+          lastChannelPageUrl = json.paging.last != null ? vimeoAppRoot + json.paging.last : null;
+          prevChannelPageUrl = json.paging.previous != null ? vimeoAppRoot + json.paging.previous : null;
+          nextChannelPageUrl = json.paging.next != null ? vimeoAppRoot + json.paging.next : null;
+        },
+        error: function() { $("<p align='center'>Error retrieving channel video page</p>").appendTo( $( ".video" ) ); }
+      });
+    }
+
+    function changeVideo(resource_key) {
+      $( ".video" ).html( getVideoHtml(resource_key) );
+    }
+
+    function getVideoHtml(resource_key){
+      for(var i=0; i<videoPageJson.data.length; i++){
+        if(resource_key.localeCompare(videoPageJson.data[i].resource_key) == 0){
+          var media = videoPageJson.data[i];
+          if (media.embed.html != null){
+            var dateArr = dateRegEx.exec(media.description)
+            var date = dateArr != null ? getFormattedDate(dateArr[1].replace(" \| ","")) : getFormattedDate(media.created_time)
+            return "<center><table style='table-layout:fixed;background-color:white;width:720px'><tr><td align='center' colspan=2>" +  media.embed.html.replace(/width="\d+" height="\d+"/,"width=\"640\" height=\"480\"") + "</td></tr><tr><td style='align:left;padding:5;vertical-align:text-top'><font size=5>" + media.name + "</font></td><td align='right' padding=5><font size=2>" + date + "</font></br>" + getFormattedDuration(media.duration) + "</font></td></tr><tr><td style='align:left;padding:5;vertical-align:text-top';colspan:2><font size=2>" + media.description.replace("\n","<br>").replace(dateArr[1],"") + "</font></td></tr></table></center><br>";
+          }else{
+            return "<center><p><font size=5>Cannot Display Video</font></p></center>";
+          }
+        }
+      }
+    }
+
+    function loadViewer(channelPageUrl) {
+      getVideoPage(channelPageUrl);
+
+      if (videoPageJson != null && videoPageJson.data.length > 0 ) {
+        changeVideo(videoPageJson.data[0].resource_key);
+
+        $( ".thumbnails" ).html( getThumbnailsHTML() );
+
+        loadNavigation();
+      } else {
+        $("<p align='center'>There was a problem loading videos.  Please try refreshing the page.</p>").appendTo( $( ".video" ) );
+      }
+    }
+
+    function loadNavigation(){
+      $( ".navigation" ).html( getNavigationHTML() );
+    }
+
+    function getNavigationHTML() {
+      var html = "<center><table style='table-layout:fixed;width:720px'><tr>";
+
+      if(prevChannelPageUrl == null ){
+        html = html + "<td align='right'>&nbsp;</td>";
+      }else{
+        html = html + "<td align='right'><button onclick=loadViewer(prevChannelPageUrl) name='previous' type='button'>Previous&nbsp;&nbsp;&nbsp;&nbsp;</button></td>";
+      }
+
+      if(nextChannelPageUrl != null){
+        html = html + "<td align='left'><button onclick=loadViewer(nextChannelPageUrl) name='next' type='button'>&nbsp;&nbsp;&nbsp;&nbsp;Next</button></td>";
+      }else{
+        html = html + "<td align='left'>&nbsp;</td>";
+      }
+
+      html = html + "</tr></table></center>"
+
+      return html;
+    }
+
+    function getThumbnailsHTML(){
+      var html = "<center><table style='table-layout:fixed;width:720px'>"
+
+      for ( var i = 0; i < videoPageJson.data.length; i++){
+        var media = videoPageJson.data[i];
+        if (i == 0 || i == 3){
+          html = html + "<tr>";
+        }
+        var dateArr = dateRegEx.exec(media.description)
+        var date = dateArr != null ? getFormattedDate(dateArr[1].replace(" \| ","")) : getFormattedDate(media.created_time)
+        html = html + "<td onclick=changeVideo('" + media.resource_key + "') class='td1' id='" + media.resource_key + "' style='border: 6px solid lightgrey;background-color:white;width:227px;word-wrap:break-word;align:center'><center><img src='" + media.pictures.sizes[1].link + "'></center><br><font size=4>" + media.name + "</font><br><font size=2>" + date + "</font></td></td>";
+        if (i == 2){
+          html = html + "</tr>";
+        }
+      }
+
+      html = html + "</tr></table></center><br>";
+
+      return html;
+    }
+
+    function getFormattedDate(myDate){
+      return moment(myDate).format("MMMM D, YYYY");
+    }
+
+    function getFormattedDuration(myDuration){
+      var durHours =  (myDuration - (myDuration % 3600))/3600;
+      var durMinutuesMinusHours = myDuration - (durHours * 3600);
+      var durMinutes = (durMinutuesMinusHours - (durMinutuesMinusHours % 60))/60;
+      return (durHours > 0 ? "<b>" + durHours + "</b> hr " : "") + "<b>" + durMinutes + "</b> min";
+    }
+  </script>
+
+</head>
+<body style="background-color:lightgrey;">
+
+  <div id = "video" class="video"></div>
+  <div id = "thumbnails" class="thumbnails"></div>
+  <div id = "navigation" class="navigation"></div>
+
+
+</body>
+</html>
