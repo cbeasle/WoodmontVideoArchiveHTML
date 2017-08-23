@@ -25,8 +25,7 @@
     //Woodmont's Vimeo APIs Password
     var vimeoAppRoot = "https://api.vimeo.com";
     var apiPassword = "94ca7078c6fa14dade1134e93e36f9f0";
-    var vimeoArchiveName = "Woodmont Hills Church Video Archive";
-    //var vimeoArchiveName = "Bristol Road Church of Christ";
+    var vimeoArchiveName = "Woodmont Hills Church Sermon Archive";
     var dateRegEx = /^(\d{1,2}\/\d{1,2}\/\d{4} \| )/;
 
     $(document).ready(function () {
@@ -55,7 +54,7 @@
           for(var i=0; i<json.data.length; i++){
             if(vimeoArchiveName.localeCompare(json.data[i].name) == 0){
               channelUri = json.data[i].uri;
-              firstChannelPageUrl = vimeoAppRoot +  channelUri + "/videos?direction=desc&page=" + pageNumber + "&per_page=" + videosPerPage + "&sort=manual";
+              firstChannelPageUrl = vimeoAppRoot +  channelUri + "/videos?sort=default&page=" + pageNumber + "&per_page=" + videosPerPage;
             }
           }
 
